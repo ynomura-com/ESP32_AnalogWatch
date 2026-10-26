@@ -1,7 +1,7 @@
 # ESP32 + GC9A01 円形ディスプレイで、アナログ時計
 
 文字盤は次の2種類が選べます
-![](images/ESP32_AnalogWatch1.png)
+![](images/ESP32_AnalogWartch1.png)![](images/ESP32_AnalogWartch2.png)
 
 * 黒背景・水色の大きな数字・外周の分表示・▼マーク・ロゴ枠
 * スイスの鉄道時計風のデザイン（白背景）
