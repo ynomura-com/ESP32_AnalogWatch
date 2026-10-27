@@ -32,11 +32,14 @@
 　VCC には `3.3V`、`GND`は`GND`に配線します。
 
  ## コントローラの切り替え
- 今回、ESP32-C3 SuperMini も使えるように `PlatformIO.ini` に追記しました。
+ コントローラを`ESP32-C3 Super Mini`, `Seeed XIAO ESP32C3`, `ESP32 MiniKit (MH-ET LIVE)` を選んでビルドできます。
+ さらに文字盤を2種から選べます。
  
 ### 使える環境 (env):
 * supermini           ESP32-C3 Super Mini / 青い文字盤   ← 既定
 * supermini_railway   ESP32-C3 Super Mini / 鉄道時計風の文字盤
+* xiao_c3             Seeed XIAO ESP32C3 / 青い文字盤
+* xiao_c3_railway     Seeed XIAO ESP32C3 / 鉄道時計風の文字盤
 * mhetesp32minikit    ESP32 MiniKit (MH-ET LIVE) / 青い文字盤
 * railway             ESP32 MiniKit (MH-ET LIVE) / 鉄道時計風の文字盤
 
