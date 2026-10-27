@@ -156,6 +156,75 @@ static inline void polar(float deg, float r, float &x, float &y) {
   y = CY - r * cosf(a) - gYOff;
 }
 
+// ESP32-C3 には FPU(浮動小数点演算器)が無く、float 演算がソフトウェア実装で非常に遅い。
+// TFT_eSPI の drawWedgeLine / fillSmoothCircle は 1 ピクセルごとに float を多用するため、
+// 針の描画だけでフレーム時間の大半を使ってしまう。
+// そこで、動く針(毎フレーム描く部分)だけ整数演算(固定小数点)で描く関数に置き換える。
+// 仕様は drawWedgeLine と同じ: 両端が丸い太さ可変の線(ra/rb は端の半径)。
+// 先端と根元が同じ点なら円になる。座標は現在の帯(スプライト)内の座標。
+// ---- 整数(固定小数点 Q8)で描く高速アンチエイリアス付き線 ----
+static inline uint16_t blend565(uint16_t bg, uint16_t fg, uint32_t a) {   // a: 0..256
+  uint32_t inv = 256 - a;
+  uint32_t r = (((bg >> 11) & 0x1F) * inv + ((fg >> 11) & 0x1F) * a) >> 8;
+  uint32_t g = (((bg >> 5)  & 0x3F) * inv + ((fg >> 5)  & 0x3F) * a) >> 8;
+  uint32_t b = (( bg        & 0x1F) * inv + ( fg        & 0x1F) * a) >> 8;
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
+static void fastWedge(float ax, float ay, float bx, float by, float ra, float rb, uint16_t color) {
+  uint16_t* buf = (uint16_t*)spr.getPointer();
+  if (!buf) return;
+  const int W = 240, H = stripH;
+
+  const float maxr = ra > rb ? ra : rb;
+  int x0 = (int)floorf((ax < bx ? ax : bx) - maxr - 1.0f);
+  int x1 = (int)ceilf ((ax > bx ? ax : bx) + maxr + 1.0f);
+  int y0 = (int)floorf((ay < by ? ay : by) - maxr - 1.0f);
+  int y1 = (int)ceilf ((ay > by ? ay : by) + maxr + 1.0f);
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 > W - 1) x1 = W - 1;
+  if (y1 > H - 1) y1 = H - 1;
+  if (x0 > x1 || y0 > y1) return;
+
+  const int32_t Ax = (int32_t)lroundf(ax * 256.0f), Ay = (int32_t)lroundf(ay * 256.0f);
+  const int32_t Bx = (int32_t)lroundf(bx * 256.0f), By = (int32_t)lroundf(by * 256.0f);
+  const int32_t Ra = (int32_t)lroundf(ra * 256.0f), Rb = (int32_t)lroundf(rb * 256.0f);
+  const int32_t bax = Bx - Ax, bay = By - Ay, dR = Rb - Ra;
+  const int64_t ba2 = (int64_t)bax * bax + (int64_t)bay * bay;                  // Q16
+  const int64_t inv = ba2 > 0 ? (((int64_t)1 << 46) / ba2) : 0;
+  const uint16_t cs = __builtin_bswap16(color);                                 // スプライトはバイト入替で保持
+
+  for (int y = y0; y <= y1; y++) {
+    const int32_t pay = y * 256 - Ay;
+    uint16_t* row = buf + y * W;
+    for (int x = x0; x <= x1; x++) {
+      const int32_t pax = x * 256 - Ax;
+      const int64_t dot = (int64_t)pax * bax + (int64_t)pay * bay;              // Q16
+      int32_t h = 0;                                                            // Q16: 0..65536
+      if (dot > 0) {
+        int64_t hh = (dot * inv) >> 30;
+        h = hh > 65536 ? 65536 : (int32_t)hh;
+      }
+      const int32_t dx = pax - (int32_t)(((int64_t)bax * h) >> 16);
+      const int32_t dy = pay - (int32_t)(((int64_t)bay * h) >> 16);
+      const int32_t r  = Ra + (int32_t)(((int64_t)dR * h) >> 16);               // Q8
+      const int64_t d2 = (int64_t)dx * dx + (int64_t)dy * dy;                   // Q16
+
+      const int32_t ro = r + 128;
+      if (d2 >= (int64_t)ro * ro) continue;                                     // 完全に外側
+      const int32_t ri = r - 128;
+      if (ri > 0 && d2 <= (int64_t)ri * ri) { row[x] = cs; continue; }          // 完全に内側
+      // 境界のピクセルだけ距離を計算してアンチエイリアス
+      const int32_t d = (int32_t)sqrtf((float)d2);                              // Q8
+      int32_t a = r + 128 - d;
+      if (a <= 0) continue;
+      if (a > 256) a = 256;
+      row[x] = __builtin_bswap16(blend565(__builtin_bswap16(row[x]), color, (uint32_t)a));
+    }
+  }
+}
+
 // 秒針の角度(度)。stopAt12 が true なら SWEEP_SECONDS で1周し、12時で次の分まで停止する
 static float secondHandDeg(float second, bool stopAt12) {
   if (!stopAt12 || !SMOOTH_SECOND) return second * 6.0f;
@@ -214,11 +283,10 @@ static void drawHand(float deg, float len, float tail, float wBase, float wTip, 
   polar(deg + 180.0f, tail, x0, y0);
   polar(deg, len, x1, y1);
   // drawWedgeLine の太さ引数は半径なので、幅の半分を渡す
-  spr.drawWedgeLine(x0, y0, x1, y1, wBase * 0.5f, wTip * 0.5f, col, COL_BG);
+  fastWedge(x0, y0, x1, y1, wBase * 0.5f, wTip * 0.5f, col);
 }
 
-static void drawClockStripBlue(int hour, int minute, float second) {
-  drawFaceBlue();
+static void drawHandsBlue(int hour, int minute, float second) {
 
   float hDeg = ((hour % 12) + minute / 60.0f + second / 3600.0f) * 30.0f;
   float mDeg = (minute + second / 60.0f) * 6.0f;
@@ -234,9 +302,9 @@ static void drawClockStripBlue(int hour, int minute, float second) {
   drawHand(sDeg, SEC_TIP_R, 26, 2.0f, 2.0f, COL_SEC);
   float sx, sy;
   polar(sDeg, SEC_TIP_R, sx, sy);
-  spr.fillSmoothCircle((int)roundf(sx), (int)roundf(sy), 4, COL_SEC, COL_BG);
+  fastWedge(sx, sy, sx, sy, 4.0f, 4.0f, COL_SEC);
 
-  spr.fillSmoothCircle(CX, Y(CY), 6, COL_HUB, COL_BG);
+  fastWedge(CX, Y(CY), CX, Y(CY), 6.0f, 6.0f, COL_HUB);
   spr.fillCircle(CX, Y(CY), 1, COL_HAND);
 }
 
@@ -277,7 +345,8 @@ static void drawBar(float deg, float r0, float r1, float w, uint16_t fg, uint16_
   polar(deg, r0 + hw, ax, ay);
   polar(deg, r1 - hw, bx, by);
   // 注意: drawWedgeLine の太さ引数は「半径」(幅の半分)
-  spr.drawWedgeLine(ax, ay, bx, by, hw, hw, fg, bg);
+  (void)bg;
+  fastWedge(ax, ay, bx, by, hw, hw, fg);
   fillBarRect(deg, r0, r0 + hw, w, fg);
   fillBarRect(deg, r1 - hw, r1, w, fg);
 }
@@ -294,8 +363,7 @@ static void drawFaceRailway() {
   }
 }
 
-static void drawClockStripRailway(int hour, int minute, float second) {
-  drawFaceRailway();
+static void drawHandsRailway(int hour, int minute, float second) {
 
   float hDeg = ((hour % 12) + minute / 60.0f + second / 3600.0f) * 30.0f;
   float mDeg = (minute + second / 60.0f) * 6.0f;
@@ -312,18 +380,50 @@ static void drawClockStripRailway(int hour, int minute, float second) {
   float ax, ay, bx, by;
   polar(sDeg + 180.0f, SEC_TAIL, ax, ay);
   polar(sDeg, SEC_DISC_POS, bx, by);
-  spr.drawWedgeLine(ax, ay, bx, by, 1.25f, 1.25f, RW_RED, RW_WHITE);   // 半径1.25 = 幅2.5px
-  spr.fillSmoothCircle((int)roundf(bx), (int)roundf(by), SEC_DISC_R, RW_RED, RW_WHITE);
+  fastWedge(ax, ay, bx, by, 1.25f, 1.25f, RW_RED);   // 半径1.25 = 幅2.5px
+  fastWedge(bx, by, bx, by, (float)SEC_DISC_R, (float)SEC_DISC_R, RW_RED);
 
   // 中心: 黒いハブ + 赤い芯
-  spr.fillSmoothCircle(CX, Y(CY), 6, RW_BLACK, RW_WHITE);
-  spr.fillSmoothCircle(CX, Y(CY), 3, RW_RED, RW_BLACK);
+  fastWedge(CX, Y(CY), CX, Y(CY), 6.0f, 6.0f, RW_BLACK);
+  fastWedge(CX, Y(CY), CX, Y(CY), 3.0f, 3.0f, RW_RED);
 }
 
-// 文字盤の切り替え
-static void drawClockStrip(int hour, int minute, float second) {
-  if (FACE == 1) drawClockStripRailway(hour, minute, second);
-  else           drawClockStripBlue(hour, minute, second);
+// 文字盤・針の切り替え
+static void drawFace() {
+  if (FACE == 1) drawFaceRailway();
+  else           drawFaceBlue();
+}
+
+static void drawHands(int hour, int minute, float second) {
+  if (FACE == 1) drawHandsRailway(hour, minute, second);
+  else           drawHandsBlue(hour, minute, second);
+}
+
+// ---- 文字盤キャッシュ ----------------------------------------------------
+// 動かない文字盤(目盛り・数字)は最初に1回だけ描いて RAM に保存し、
+// 毎フレームは「コピー + 針だけ描画」にする(描画時間が大幅に減る)。
+// 帯ごとに確保するので、メモリが足りない帯だけ従来どおり毎回描画する。
+static uint16_t* faceCache[8] = {nullptr};
+
+static void buildFaceCache() {
+  const size_t stripBytes = (size_t)240 * stripH * 2;
+  const int n = 240 / stripH;
+  int ok = 0;
+  for (int i = 0; i < n && i < 8; i++) {
+    uint16_t* buf = (uint16_t*)heap_caps_malloc(stripBytes, MALLOC_CAP_8BIT);
+    if (!buf) {
+      LOG("CACHE", "strip %d/%d: alloc FAILED (%u bytes), will redraw live", i + 1, n, (unsigned)stripBytes);
+      continue;
+    }
+    gYOff = i * stripH;
+    drawFace();
+    memcpy(buf, spr.getPointer(), stripBytes);
+    faceCache[i] = buf;
+    ok++;
+  }
+  LOG("CACHE", "face cache: %d/%d strips cached, free heap=%lu, largest block=%lu",
+      ok, n, (unsigned long)ESP.getFreeHeap(),
+      (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 }
 
 // ================= 初期化処理 =================
@@ -372,6 +472,11 @@ static void connectWiFi() {
 
   LOG("WIFI", "connecting to \"%s\" ...", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+#ifdef WIFI_LOW_TX_POWER
+  // 一部の ESP32-C3 Super Mini はアンテナ特性の都合で送信出力を下げると安定する
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  LOG("WIFI", "TX power limited to 8.5 dBm");
+#endif
 
   const uint32_t timeoutMs = 20000;
   uint32_t t0 = millis();
@@ -414,6 +519,8 @@ static void syncTime() {
 // ================= setup / loop =================
 void setup() {
   Serial.begin(115200);
+  // USB CDC(ESP32-C3/S3 のネイティブUSB)ではPC側が接続するまで待つ(最大3秒)
+  for (uint32_t t0 = millis(); !Serial && millis() - t0 < 3000;) delay(10);
   delay(1000);
   Serial.println();
   Serial.println("============ Analog Clock boot ============");
@@ -450,6 +557,9 @@ void setup() {
     }
   }
 
+  // --- 文字盤キャッシュ(WiFi より先に確保) ---
+  buildFaceCache();
+
   // --- WiFi / NTP ---
   showStatus("Connecting WiFi...", WIFI_SSID);
   connectWiFi();
@@ -464,6 +574,7 @@ void loop() {
   static int lastSec = -1;
   static uint32_t lastBeat = 0;
   static uint32_t beatFrames = 0;
+  static uint32_t accRenderUs = 0, accPushUs = 0;   // 1フレームあたりの描画/転送時間の集計
 
   struct timeval tv;
   gettimeofday(&tv, nullptr);
@@ -477,8 +588,16 @@ void loop() {
     float sec = t.tm_sec + (SMOOTH_SECOND ? tv.tv_usec / 1e6f : 0.0f);
     for (int y = 0; y < 240; y += stripH) {
       gYOff = y;
-      drawClockStrip(t.tm_hour, t.tm_min, sec);
+      uint32_t tA = micros();
+      uint16_t* cache = faceCache[y / stripH];
+      if (cache) memcpy(spr.getPointer(), cache, (size_t)240 * stripH * 2);
+      else       drawFace();
+      drawHands(t.tm_hour, t.tm_min, sec);
+      uint32_t tB = micros();
       spr.pushSprite(0, y);
+      uint32_t tC = micros();
+      accRenderUs += tB - tA;
+      accPushUs   += tC - tB;
     }
     frames++;
     beatFrames++;
@@ -493,10 +612,14 @@ void loop() {
       LOG("NTP", "synced (late)");
     }
     wl_status_t ws = WiFi.status();
-    LOG("RUN", "%02d:%02d:%02d | WiFi=%s RSSI=%d | NTP=%s | heap=%lu | %.1f fps | frames=%lu",
+    float renderMs = beatFrames ? accRenderUs / 1000.0f / beatFrames : 0.0f;
+    float pushMs   = beatFrames ? accPushUs   / 1000.0f / beatFrames : 0.0f;
+    LOG("RUN", "%02d:%02d:%02d | WiFi=%s RSSI=%d | NTP=%s | heap=%lu | %.1f fps (render %.1f ms + push %.1f ms) | frames=%lu",
         t.tm_hour, t.tm_min, t.tm_sec, wifiStatusStr(ws),
         ws == WL_CONNECTED ? WiFi.RSSI() : 0, ntpOk ? "OK" : "NG",
-        (unsigned long)ESP.getFreeHeap(), fps, (unsigned long)frames);
+        (unsigned long)ESP.getFreeHeap(), fps, renderMs, pushMs, (unsigned long)frames);
+    accRenderUs = 0;
+    accPushUs = 0;
     lastBeat = now;
     beatFrames = 0;
   }
