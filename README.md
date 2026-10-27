@@ -10,28 +10,7 @@
 * スイスの鉄道時計風のデザイン（白背景）
 `PlatformIO` の環境`(env)`で切り替えられます。
 
-## 文字盤の切り替え方
-* `platformio.ini` に `[env:mhetesp32minikit]` と `[env:railway]` があります。
-* `VS Code` 下部の環境選択(または `pio run -e railway -t upload`)で切り替えられます。
-* * `mhetesp32minikit` を選ぶ（ディフォルト）と、黒背景の青い文字盤です。
-* `railway` を選んで書き込むと、スイスの鉄道時計風の文字盤になります。
-* 起動ログの `[BOOT] watch face:` に、どちらの文字盤か表示されます。
-
-## 配線(GC9A01 → ESP32 MiniKit)
-配線（ESP32のピン番号は PlatformIO.ini で設定できますので、やりやすい配線に合わせて書き換えて使用してください。
-
-例えば
-```cpp
-    -DTFT_MOSI=17    // SDA
-    -DTFT_SCLK=16    // SCL
-    -DTFT_CS=22
-    -DTFT_DC=21
-    -DTFT_RST=27
-    -DTFT_BL=32      // 配線なし
-```
-　VCC には `3.3V`、`GND`は`GND`に配線します。
-
- ## コントローラの切り替え
+## コントローラと文字盤の切り替え
  コントローラを`ESP32-C3 Super Mini`, `Seeed XIAO ESP32C3`, `ESP32 MiniKit (MH-ET LIVE)` を選んでビルドできます。
  さらに文字盤を2種から選べます。
  
@@ -44,6 +23,28 @@
 * railway             ESP32 MiniKit (MH-ET LIVE) / 鉄道時計風の文字盤
 
 コントローラに合わせて、`PlatformIO.ini` のピン設定を確認してください。
+
+
+## 文字盤の切り替え方
+* `platformio.ini` に 上記の6種があります。
+* `VS Code` 下部の環境選択(または `pio run -e railway -t upload`)で切り替えられます。
+* * コントローラ名だけのものを選ぶ（ディフォルト）と、黒背景の青い文字盤です。
+* `_railway` がついたものを選んで書き込むと、スイスの鉄道時計風の文字盤になります。
+* 起動ログの `[BOOT] watch face:` に、どちらの文字盤か表示されます。
+
+## 配線(GC9A01 → ESP32 MiniKit)
+配線（ESP32のピン番号)は `PlatformIO.ini` の使用する `ENV:`で設定できますので、やりやすい配線に合わせて書き換えて使用してください。
+
+例えば
+```cpp
+    -DTFT_MOSI=17    // SDA
+    -DTFT_SCLK=16    // SCL
+    -DTFT_CS=22
+    -DTFT_DC=21
+    -DTFT_RST=27
+    -DTFT_BL=32      // 配線なし
+```
+　VCC には `3.3V`、`GND`は`GND`に配線します。
 
  ## 調整ポイント
 
