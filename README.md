@@ -15,14 +15,16 @@
  さらに文字盤を2種から選べます。
  
 ### 使える環境 (env):
-* supermini           ESP32-C3 Super Mini / 青い文字盤   ← 既定
-* supermini_railway   ESP32-C3 Super Mini / 鉄道時計風の文字盤
-* xiao_c3             Seeed XIAO ESP32C3 / 青い文字盤
-* xiao_c3_railway     Seeed XIAO ESP32C3 / 鉄道時計風の文字盤
-* mhetesp32minikit    ESP32 MiniKit (MH-ET LIVE) / 青い文字盤
-* railway             ESP32 MiniKit (MH-ET LIVE) / 鉄道時計風の文字盤
+| env: | コントローラ | 文字盤 |
+|----|----|----|
+|supermini |ESP32-C3 Super Mini|青い文字盤   ← 既定|
+|supermini_railway|ESP32-C3 Super Mini|鉄道時計風の文字盤|
+|xiao_c3|Seeed XIAO ESP32C3| 青い文字盤|
+|xiao_c3_railway|Seeed XIAO ESP32C3|鉄道時計風の文字盤|
+|mhetesp32minikit|ESP32 MiniKit (MH-ET LIVE)|青い文字盤|
+|railway|ESP32 MiniKit (MH-ET LIVE)| 鉄道時計風の文字盤|
 
-コントローラに合わせて、`PlatformIO.ini` のピン設定を確認してください。
+コントローラに合わせて、`PlatformIO.ini` のピン設定を確認/修正してください。
 
 
 ## 文字盤の切り替え方
