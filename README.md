@@ -31,6 +31,17 @@
 ```
 　VCC には `3.3V`、`GND`は`GND`に配線します。
 
+ ## コントローラの切り替え
+ 今回、ESP32-C3 SuperMini も使えるように `PlatformIO.ini` に追記しました。
+ 
+### 使える環境 (env):
+* supermini           ESP32-C3 Super Mini / 青い文字盤   ← 既定
+* supermini_railway   ESP32-C3 Super Mini / 鉄道時計風の文字盤
+* mhetesp32minikit    ESP32 MiniKit (MH-ET LIVE) / 青い文字盤
+* railway             ESP32 MiniKit (MH-ET LIVE) / 鉄道時計風の文字盤
+
+コントローラに合わせて、`PlatformIO.ini` のピン設定を確認してください。
+
  ## 調整ポイント
 
 * 色が赤と青で逆になる場合: `platformio.ini` の `-DTFT_RGB_ORDER=TFT_BGR` のコメントを外します。
