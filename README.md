@@ -2,9 +2,9 @@
 
 文字盤は次の2種類が選べます
 
-![](images/ESP32_AnalogWatch1.png)
-
 ![](images/ESP32_AnalogWatch2.png)
+
+![](images/ESP32_AnalogWatch1.png)
 
 * 黒背景・水色の大きな数字・外周の分表示・▼マーク・ロゴ枠
 * スイスの鉄道時計風のデザイン（白背景）
@@ -44,3 +44,21 @@
 * 時針・分針の太さは `drawClockStripBlue` 内の `drawHand(hDeg, 52, 10, 9.0f, TIP_W, …)` と `drawHand(mDeg, 86, 12, 7.0f, TIP_W, …)` の 4 番目の数値です。
 * 秒針の太さは同じ関数内の `drawHand(sDeg, SEC_TIP_R, 26, 2.0f, 2.0f, …)` の `2.0f` です。
 * 針が細すぎる、または円が大きすぎると感じたら、`fillSmoothCircle` の半径`(4)`を `3` にするのも手です。
+
+## 調整
+文字盤のデザインや運針と、鉄道時計風の動き（秒針が12時で 1.5秒停止）が設定で変更できます。
+
+### 文字盤のデザインと運針
+```cpp
+static const bool  SMOOTH_SECOND = true;         // true: 秒針が滑らか / false: 1秒ごと
+static const char* LOGO_TEXT = "ESP";
+static const int   NUM_DY = 2;                   // 数字の縦位置の微調整(px)
+static const uint32_t HEARTBEAT_MS = 10000;      // 状態ログの出力間隔
+```
+### 鉄道時計風の動き
+```cpp
+// 秒針の 12 時停止(鉄道時計風)。SMOOTH_SECOND = true のときだけ有効
+static const bool  STOP_AT_12_RAILWAY = true;    // 鉄道時計風の文字盤
+static const bool  STOP_AT_12_BLUE    = false;   // 青い文字盤
+static const float SWEEP_SECONDS      = 58.5f;   // 1周にかける秒数(残りの時間は12時で停止)
+```
