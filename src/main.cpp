@@ -18,6 +18,11 @@ static const char* LOGO_TEXT = "ESP";
 static const int   NUM_DY = 2;                   // 数字の縦位置の微調整(px)
 static const uint32_t HEARTBEAT_MS = 10000;      // 状態ログの出力間隔
 
+// 秒針の 12 時停止(鉄道時計風)。SMOOTH_SECOND = true のときだけ有効
+static const bool  STOP_AT_12_RAILWAY = true;    // 鉄道時計風の文字盤
+static const bool  STOP_AT_12_BLUE    = false;   // 青い文字盤
+static const float SWEEP_SECONDS      = 58.5f;   // 1周にかける秒数(残りの時間は12時で停止)
+
 // ================= ログ =================
 #define LOG(tag, fmt, ...) Serial.printf("[%8lu] [" tag "] " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
 
@@ -151,6 +156,13 @@ static inline void polar(float deg, float r, float &x, float &y) {
   y = CY - r * cosf(a) - gYOff;
 }
 
+// 秒針の角度(度)。stopAt12 が true なら SWEEP_SECONDS で1周し、12時で次の分まで停止する
+static float secondHandDeg(float second, bool stopAt12) {
+  if (!stopAt12 || !SMOOTH_SECOND) return second * 6.0f;
+  if (second >= SWEEP_SECONDS) return 360.0f;          // 12時で停止
+  return second * (360.0f / SWEEP_SECONDS);
+}
+
 static void drawFaceBlue() {
   spr.fillSprite(COL_BG);
   float x0, y0, x1, y1;
@@ -210,7 +222,7 @@ static void drawClockStripBlue(int hour, int minute, float second) {
 
   float hDeg = ((hour % 12) + minute / 60.0f + second / 3600.0f) * 30.0f;
   float mDeg = (minute + second / 60.0f) * 6.0f;
-  float sDeg = second * 6.0f;
+  float sDeg = secondHandDeg(second, STOP_AT_12_BLUE);
 
   // 時針・分針: 先端が針のように尖る(先端幅 TIP_W を小さくするほど鋭くなる)
   const float TIP_W = 0.8f;
@@ -287,7 +299,7 @@ static void drawClockStripRailway(int hour, int minute, float second) {
 
   float hDeg = ((hour % 12) + minute / 60.0f + second / 3600.0f) * 30.0f;
   float mDeg = (minute + second / 60.0f) * 6.0f;
-  float sDeg = second * 6.0f;
+  float sDeg = secondHandDeg(second, STOP_AT_12_RAILWAY);
 
   // 時針・分針: 太い黒の棒(短い尾付き)
   drawBar(hDeg, -20, 74, 10.0f, RW_BLACK, RW_WHITE);
