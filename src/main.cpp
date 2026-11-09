@@ -23,6 +23,11 @@ static const bool  STOP_AT_12_RAILWAY = true;    // 鉄道時計風の文字盤
 static const bool  STOP_AT_12_BLUE    = false;   // 青い文字盤
 static const float SWEEP_SECONDS      = 58.5f;   // 1周にかける秒数(残りの時間は12時で停止)
 
+// 表示の向き(TFT_eSPI の setRotation の値)。platformio.ini の -DTFT_ROTATION=N で上書きできる
+#ifndef TFT_ROTATION
+#define TFT_ROTATION 0
+#endif
+
 // ================= ログ =================
 #define LOG(tag, fmt, ...) Serial.printf("[%8lu] [" tag "] " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
 
@@ -541,8 +546,9 @@ void setup() {
   logPins();
   LOG("TFT", "tft.init() ...");
   tft.init();
-  tft.setRotation(0);
+  tft.setRotation(TFT_ROTATION);   // 0:標準 1:右に90度 2:180度 3:左に90度(platformio.ini の -DTFT_ROTATION で指定)
   // 表示の向きの補正(GC9A01 は setRotation で反転できないため MADCTL を直接設定する)
+  // ※ TFT_FLIP_X / TFT_FLIP_Y は TFT_ROTATION=0 を前提にした補正
   //   TFT_FLIP_X: 左右反転 / TFT_FLIP_Y: 上下反転 (両方指定すると180度回転)
 #if defined(TFT_FLIP_X) || defined(TFT_FLIP_Y)
   {
