@@ -17,14 +17,14 @@
 ### 使える環境 (env):
 | env: | コントローラ | 文字盤 |
 |----|----|----|
-|supermini |ESP32-C3 Super Mini|青い文字盤   ← 既定|
+|supermini_blue|ESP32-C3 Super Mini|青い文字盤   ← 既定|
 |supermini_railway|ESP32-C3 Super Mini|鉄道時計風の文字盤|
-|xiao_c3|Seeed XIAO ESP32C3| 青い文字盤|
+|xiao_c3_blue|Seeed XIAO ESP32C3|青い文字盤|
 |xiao_c3_railway|Seeed XIAO ESP32C3|鉄道時計風の文字盤|
 |esp32_2424s012_blue|ESP32-2424S012 (1.28" 円形LCD一体型)|青い文字盤|
 |esp32_2424s012_railway|ESP32-2424S012 (1.28" 円形LCD一体型)|鉄道時計風の文字盤|
-|mhetesp32minikit|ESP32 MiniKit (MH-ET LIVE)|青い文字盤|
-|railway|ESP32 MiniKit (MH-ET LIVE)| 鉄道時計風の文字盤|
+|mhetesp32minikit_blue|ESP32 MiniKit (MH-ET LIVE)|青い文字盤|
+|mhetesp32minikit_railway|ESP32 MiniKit (MH-ET LIVE)|鉄道時計風の文字盤|
 
 お手元のコントローラに合わせて、`PlatformIO.ini` のピン設定を確認/修正してください。
 
@@ -56,7 +56,9 @@
 * 数字の縦位置がずれる場合: `NUM_DY` を調整します。
 * 秒針の動き: `SMOOTH_SECOND` で、滑らかに動かすか、1 秒ごとにカチッと動かすかを切り替えます。
 * 描画が重い場合: `SPI_FREQUENCY` を `80000000` に上げられます。表示が乱れたら `40000000` に戻してください。
-* 向きが違う場合: `tft.setRotation()` を変えます。
+* `ESP32-2424S012` の場合 USB-C 端子の位置を変えたい（画面の向きを変えたい）場合：-DTFT_ROTATIONを次のように設定できます。
+　`-DTFT_ROTATION=1`（端子が右側）、`-DTFT_ROTATION=3`（端子が左側）、`-DTFT_ROTATION=0`（端子が下）
+* 他のコントローラで向きが違う場合: `main.cpp` の `tft.setRotation()` を変えます。
 * `xiao-c3` で 画面が反転する場合は、`-DTFT_FLIP_X`(左右反転)か`-DTFT_FLIP_Y`(上下反転)のコメントアウトを有効化して対応します。
 
 ## 文字盤を調整したい場合
