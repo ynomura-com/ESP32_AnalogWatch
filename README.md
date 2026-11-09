@@ -11,7 +11,7 @@
 `PlatformIO` の環境`(env)`で切り替えられます。
 
 ## コントローラと文字盤の切り替え
- コントローラを`ESP32-C3 Super Mini`, `Seeed XIAO ESP32C3`, `ESP32 MiniKit (MH-ET LIVE)` を選んでビルドできます。
+ コントローラを`ESP32-C3 Super Mini`, `Seeed XIAO ESP32C3`, `esp32_2424s012` , `ESP32 MiniKit (MH-ET LIVE)` を選んでビルドできます。
  さらに文字盤を2種から選べます。
  
 ### 使える環境 (env):
@@ -21,14 +21,16 @@
 |supermini_railway|ESP32-C3 Super Mini|鉄道時計風の文字盤|
 |xiao_c3|Seeed XIAO ESP32C3| 青い文字盤|
 |xiao_c3_railway|Seeed XIAO ESP32C3|鉄道時計風の文字盤|
+|esp32_2424s012_blue|ESP32-2424S012 (1.28" 円形LCD一体型)|青い文字盤|
+|esp32_2424s012_railway|ESP32-2424S012 (1.28" 円形LCD一体型)|鉄道時計風の文字盤|
 |mhetesp32minikit|ESP32 MiniKit (MH-ET LIVE)|青い文字盤|
 |railway|ESP32 MiniKit (MH-ET LIVE)| 鉄道時計風の文字盤|
 
-コントローラに合わせて、`PlatformIO.ini` のピン設定を確認/修正してください。
+お手元のコントローラに合わせて、`PlatformIO.ini` のピン設定を確認/修正してください。
 
 
 ## 文字盤の切り替え方
-* `platformio.ini` に 上記の6種があります。
+* `platformio.ini` に 上記の8種があります。
 * `VS Code` 下部の環境選択(または `pio run -e railway -t upload`)で切り替えられます。
 * * コントローラ名だけのものを選ぶ（ディフォルト）と、黒背景の青い文字盤です。
 * `_railway` がついたものを選んで書き込むと、スイスの鉄道時計風の文字盤になります。
@@ -55,6 +57,7 @@
 * 秒針の動き: `SMOOTH_SECOND` で、滑らかに動かすか、1 秒ごとにカチッと動かすかを切り替えます。
 * 描画が重い場合: `SPI_FREQUENCY` を `80000000` に上げられます。表示が乱れたら `40000000` に戻してください。
 * 向きが違う場合: `tft.setRotation()` を変えます。
+* -DTFT_FLIP_X(左右反転)と -DTFT_FLIP_Y(上下反転)が設定できます。
 
 ## 文字盤を調整したい場合
 
