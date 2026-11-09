@@ -542,6 +542,25 @@ void setup() {
   LOG("TFT", "tft.init() ...");
   tft.init();
   tft.setRotation(0);
+  // 表示の向きの補正(GC9A01 は setRotation で反転できないため MADCTL を直接設定する)
+  //   TFT_FLIP_X: 左右反転 / TFT_FLIP_Y: 上下反転 (両方指定すると180度回転)
+#if defined(TFT_FLIP_X) || defined(TFT_FLIP_Y)
+  {
+    uint8_t madctl = TFT_MAD_BGR;
+    int fx = 0, fy = 0;
+#ifdef TFT_FLIP_X
+    madctl |= TFT_MAD_MX;
+    fx = 1;
+#endif
+#ifdef TFT_FLIP_Y
+    madctl |= TFT_MAD_MY;
+    fy = 1;
+#endif
+    tft.writecommand(TFT_MADCTL);
+    tft.writedata(madctl);
+    LOG("TFT", "MADCTL override: 0x%02X (flipX=%d flipY=%d)", madctl, fx, fy);
+  }
+#endif
   LOG("TFT", "tft.init() done (%dx%d)", tft.width(), tft.height());
   displayTest();
 
